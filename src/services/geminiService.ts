@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
+const API_KEY = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (process.env.GEMINI_API_KEY as string) || '';
+
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY || '' 
+  apiKey: API_KEY 
 });
 
 const SYSTEM_INSTRUCTION = `
@@ -69,8 +71,12 @@ Cada respuesta debe cerrar invitando al trámite por WhatsApp:
 
 export async function chatWithElena(message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[] = []) {
   try {
+    if (!API_KEY) {
+      throw new Error("API Key missing");
+    }
+
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [
         ...history,
         { role: 'user' as const, parts: [{ text: message }] }
@@ -81,9 +87,12 @@ export async function chatWithElena(message: string, history: { role: 'user' | '
       },
     });
 
-    return response.text || "Lo siento, tuve un pequeño problema. ¿Podría repetirme su duda? ¡Con gusto le atiendo!";
+    return response.text || "Fíjese que no pude procesar su mensaje. ¿Podría repetirlo? Con gusto le atiendo.";
   } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Fíjese que tuve un inconveniente técnico, pero si gusta puede escribirnos directamente al WhatsApp y con gusto le atenderemos.";
+    console.error("Gemini Error Detail:", error);
+    if (error instanceof Error && error.message.includes("API Key missing")) {
+      return "Fíjese que hace falta configurar la llave de acceso al sistema (API KEY) en el servidor. Mientras tanto, puede escribirnos al WhatsApp 5968-6584 y con gusto le atenderemos.";
+    }
+    return "Fíjese que tuve un inconveniente técnico momentáneo, pero si gusta puede escribirnos directamente al WhatsApp 5968-6584 y con gusto le atenderemos.";
   }
 }
